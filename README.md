@@ -24,5 +24,5 @@ Todos os dados são armazenados localmente. Não há sincronização com serviç
 ## Estrutura do projeto
 Documentação e implementação ficam neste repositório. O README descreve a proposta e o uso geral do app.
 
-## Contribuicao
+## Contribuição
 Sugestões e melhorias são bem-vindas. Abra uma issue descrevendo a ideia ou problema encontrado.
