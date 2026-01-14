@@ -117,6 +117,7 @@ main {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 48px;
   align-items: center;
+  scroll-margin-top: 96px;
 }
 
 .hero-copy h1 {
@@ -325,6 +326,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 32px;
+  scroll-margin-top: 96px;
 }
 
 .modal-backdrop {
@@ -424,6 +426,16 @@ main {
   border-color: rgba(225, 27, 34, 0.4);
 }
 
+.input-required {
+  border-color: rgba(225, 27, 34, 0.7);
+  box-shadow: 0 0 0 2px rgba(225, 27, 34, 0.2);
+}
+
+.required {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .textarea {
   min-height: 90px;
   resize: vertical;
@@ -498,6 +510,7 @@ main {
   border-radius: 32px;
   padding: 36px;
   border: 1px solid rgba(15, 15, 18, 0.05);
+  scroll-margin-top: 96px;
 }
 
 .timeline-card {
@@ -521,6 +534,7 @@ main {
   gap: 24px;
   border-top: 1px solid var(--stroke);
   padding-top: 24px;
+  scroll-margin-top: 96px;
 }
 
 .footer-title {
