@@ -2,7 +2,7 @@
 
 Organize sua lista de leitura de manhuas/manhwas em um app local. Cadastre obras, acompanhe capítulos, marque status, adicione notas/tags e encontre tudo com filtros e busca. Dados ficam armazenados localmente.
 
-## Visao geral
+## Visão geral
 O cap-tracker é um aplicativo local para quem quer manter controle da própria lista de leitura sem depender de serviços externos. O foco é simplicidade: cadastro rapido, acompanhamento de progresso e consulta fácil.
 
 ## Recursos
