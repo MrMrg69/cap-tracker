@@ -1,12 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./styles/app.css";
 import StatCard from "./components/StatCard";
-
-const stats = [
-  { label: "Capítulos lidos", value: "1.248", trend: "+23 na semana" },
-  { label: "Séries ativas", value: "12", trend: "3 em hiato" },
-  { label: "Capítulos marcados", value: "4", trend: "2 favoritos" }
-];
 
 const initialSeries = [
   { title: "Moonlit Contract", chapter: "Cap. 89", status: "Em dia" },
@@ -50,17 +44,46 @@ const activities = [
   }
 ];
 
+type ShelfFormItem = {
+  name: string;
+  description: string;
+  totalChapters: string;
+  currentChapter: string;
+};
+
 export default function App() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [note, setNote] = useState<string | null>(null);
   const [series, setSeries] = useState(initialSeries);
+  const [isShelfOpen, setIsShelfOpen] = useState(false);
+  const [shelfStep, setShelfStep] = useState<"count" | "form">("count");
+  const [shelfCount, setShelfCount] = useState(1);
+  const [shelfItems, setShelfItems] = useState<ShelfFormItem[]>([]);
+  const [shelfError, setShelfError] = useState<string | null>(null);
 
   useEffect(() => {
     document.body.dataset.theme = theme;
   }, [theme]);
 
+  const stats = useMemo(
+    () => [
+      { label: "Capítulos lidos", value: "1.248", trend: "+23 na semana" },
+      {
+        label: "Séries ativas",
+        value: String(series.length),
+        trend: series.length > 0 ? "3 em hiato" : "Comece sua estante"
+      },
+      { label: "Capítulos marcados", value: "4", trend: "2 favoritos" }
+    ],
+    [series.length]
+  );
+
   const handleCreateShelf = () => {
-    setNote("Estante criada. Agora adicione suas séries manualmente.");
+    setShelfError(null);
+    setShelfCount(1);
+    setShelfItems([]);
+    setShelfStep("count");
+    setIsShelfOpen(true);
   };
 
   const handleImportList = () => {
@@ -95,6 +118,102 @@ export default function App() {
 
   const handleThemeToggle = () => {
     setTheme((current) => (current === "light" ? "dark" : "light"));
+  };
+
+  const handleCloseShelf = () => {
+    setIsShelfOpen(false);
+    setShelfError(null);
+  };
+
+  const handleConfirmCount = () => {
+    const count = Math.max(1, Math.min(12, shelfCount));
+    const items = Array.from({ length: count }, () => ({
+      name: "",
+      description: "",
+      totalChapters: "",
+      currentChapter: ""
+    }));
+    setShelfItems(items);
+    setShelfStep("form");
+  };
+
+  const handleShelfChange = (
+    index: number,
+    field: keyof ShelfFormItem,
+    value: string
+  ) => {
+    setShelfItems((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const handleSaveShelf = () => {
+    setShelfError(null);
+
+    if (shelfItems.length === 0) {
+      setShelfError("Adicione pelo menos um manhua para salvar.");
+      return;
+    }
+
+    const hasMissingName = shelfItems.some((item) => item.name.trim() === "");
+    const hasMissingTotal = shelfItems.some((item) => item.totalChapters === "");
+    if (hasMissingName || hasMissingTotal) {
+      setShelfError("Preencha nome e total de capítulos em todos os itens.");
+      return;
+    }
+
+    const parsedTotals = shelfItems.map((item) => Number(item.totalChapters));
+    if (parsedTotals.some((value) => Number.isNaN(value) || value <= 0)) {
+      setShelfError("Total de capítulos deve ser um número acima de zero.");
+      return;
+    }
+
+    const parsedCurrents = shelfItems.map((item) =>
+      item.currentChapter === "" ? null : Number(item.currentChapter)
+    );
+    if (
+      parsedCurrents.some(
+        (value) => value !== null && (Number.isNaN(value) || value < 0)
+      )
+    ) {
+      setShelfError("Capítulo atual precisa ser zero ou maior.");
+      return;
+    }
+
+    const newSeries = shelfItems.map((item, index) => {
+      const total = parsedTotals[index];
+      const current =
+        parsedCurrents[index] === null ? null : parsedCurrents[index];
+      return {
+        title: item.name.trim(),
+        description: item.description.trim(),
+        total,
+        current
+      };
+    });
+
+    let lastFilled = 0;
+    const mappedSeries = newSeries.map((item, index) => {
+      const currentBase =
+        item.current === null
+          ? index === 0 && lastFilled === 0
+            ? item.total
+            : lastFilled
+          : item.current;
+      const current = Math.min(currentBase, item.total);
+      lastFilled = Math.max(lastFilled, current);
+      return {
+        title: item.title,
+        chapter: `Cap. ${current}`,
+        status: "Manual"
+      };
+    });
+
+    setSeries((current) => [...mappedSeries, ...current]);
+    setNote("Estante criada. Seus manhuas já estão na biblioteca.");
+    setIsShelfOpen(false);
   };
 
   return (
@@ -170,7 +289,7 @@ export default function App() {
                   <StatCard key={stat.label} {...stat} />
                 ))}
               </div>
-              <div className="series-list">
+              <div className="shelf-grid">
                 {series.map((item, index) => (
                   <div className="series-item" key={item.title}>
                     <span className={`series-cover tone-${index + 1}`} />
@@ -255,6 +374,137 @@ export default function App() {
           </button>
         </div>
       </footer>
+
+      {isShelfOpen ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Criar estante</p>
+                <h2>Adicionar manhuas manualmente</h2>
+              </div>
+              <button className="btn btn-ghost" onClick={handleCloseShelf}>
+                Fechar
+              </button>
+            </div>
+
+            {shelfStep === "count" ? (
+              <div className="modal-body">
+                <p className="modal-text">
+                  Quantos manhuas você quer adicionar agora?
+                </p>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={shelfCount}
+                  onChange={(event) =>
+                    setShelfCount(Number(event.target.value))
+                  }
+                />
+                <p className="field-hint">
+                  Você pode adicionar mais depois.
+                </p>
+                <div className="modal-actions">
+                  <button className="btn btn-primary" onClick={handleConfirmCount}>
+                    Continuar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="modal-body">
+                <div className="shelf-form">
+                  {shelfItems.map((item, index) => (
+                    <div className="shelf-card" key={`shelf-${index}`}>
+                      <div className="shelf-card-header">
+                        <span className={`series-cover tone-${index + 1}`} />
+                        <h3>Manhua {index + 1}</h3>
+                      </div>
+                      <label className="field">
+                        <span>Nome do manhua *</span>
+                        <input
+                          className="input"
+                          type="text"
+                          value={item.name}
+                          onChange={(event) =>
+                            handleShelfChange(index, "name", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Descrição (opcional)</span>
+                        <textarea
+                          className="input textarea"
+                          maxLength={220}
+                          value={item.description}
+                          onChange={(event) =>
+                            handleShelfChange(
+                              index,
+                              "description",
+                              event.target.value
+                            )
+                          }
+                        />
+                        <span className="field-hint">
+                          Até 220 caracteres.
+                        </span>
+                      </label>
+                      <div className="field-row">
+                        <label className="field">
+                          <span>Capítulos totais *</span>
+                          <input
+                            className="input"
+                            type="number"
+                            min={1}
+                            value={item.totalChapters}
+                            onChange={(event) =>
+                              handleShelfChange(
+                                index,
+                                "totalChapters",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Capítulo atual</span>
+                          <input
+                            className="input"
+                            type="number"
+                            min={0}
+                            value={item.currentChapter}
+                            onChange={(event) =>
+                              handleShelfChange(
+                                index,
+                                "currentChapter",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {shelfError ? (
+                  <p className="action-note" aria-live="polite">
+                    {shelfError}
+                  </p>
+                ) : null}
+                <div className="modal-actions">
+                  <button className="btn btn-ghost" onClick={handleCloseShelf}>
+                    Cancelar
+                  </button>
+                  <button className="btn btn-primary" onClick={handleSaveShelf}>
+                    Salvar estante
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

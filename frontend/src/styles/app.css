@@ -244,7 +244,7 @@ main {
   color: var(--accent-strong);
 }
 
-.series-list {
+.shelf-grid {
   display: grid;
   gap: 12px;
   border-top: 1px dashed var(--stroke);
@@ -252,9 +252,13 @@ main {
 }
 
 .series-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px 1fr;
   gap: 12px;
   align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 15, 18, 0.04);
 }
 
 .series-cover {
@@ -321,6 +325,108 @@ main {
   display: flex;
   flex-direction: column;
   gap: 32px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 14, 0.65);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 10;
+}
+
+.modal {
+  width: min(820px, 100%);
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--stroke);
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-body {
+  display: grid;
+  gap: 16px;
+}
+
+.modal-text {
+  color: var(--muted);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.shelf-form {
+  display: grid;
+  gap: 16px;
+}
+
+.shelf-card {
+  border-radius: 18px;
+  border: 1px solid var(--stroke);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  background: rgba(15, 15, 18, 0.03);
+}
+
+.shelf-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.field-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.input {
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: transparent;
+  padding: 10px 12px;
+  color: var(--text);
+  font: inherit;
+}
+
+.input:focus {
+  outline: 2px solid rgba(225, 27, 34, 0.25);
+  border-color: rgba(225, 27, 34, 0.4);
+}
+
+.textarea {
+  min-height: 90px;
+  resize: vertical;
 }
 
 .section-head {
@@ -487,6 +593,22 @@ body[data-theme="dark"] .signal-row span {
 body[data-theme="dark"] .action-note {
   background: rgba(255, 59, 59, 0.12);
   border-color: rgba(255, 59, 59, 0.32);
+}
+
+body[data-theme="dark"] .series-item {
+  background: rgba(248, 248, 248, 0.06);
+}
+
+body[data-theme="dark"] .modal {
+  background: #161a24;
+}
+
+body[data-theme="dark"] .modal-backdrop {
+  background: rgba(5, 6, 9, 0.8);
+}
+
+body[data-theme="dark"] .shelf-card {
+  background: rgba(248, 248, 248, 0.03);
 }
 
 .reveal {
