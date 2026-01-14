@@ -1,17 +1,76 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import "./styles/app.css";
 import StatCard from "./components/StatCard";
 
-const initialSeries = [
-  { title: "Moonlit Contract", chapter: "Cap. 89", status: "Em dia" },
-  { title: "Lotus Noir", chapter: "Cap. 52", status: "Atrasado" },
-  { title: "Azure Blade", chapter: "Cap. 17", status: "Novo" },
-  { title: "City of Jade", chapter: "Cap. 204", status: "Em dia" }
+type ManhuaItem = {
+  id: string;
+  name: string;
+  description: string;
+  totalChapters: number;
+  currentChapter: number;
+  status: string;
+};
+
+type ShelfFormItem = {
+  id?: string;
+  name: string;
+  description: string;
+  totalChapters: string;
+  currentChapter: string;
+};
+
+const initialManhuas: ManhuaItem[] = [
+  {
+    id: "moonlit-contract",
+    name: "Moonlit Contract",
+    description: "Romance intenso com contratos e reviravoltas.",
+    totalChapters: 120,
+    currentChapter: 89,
+    status: "Manual"
+  },
+  {
+    id: "lotus-noir",
+    name: "Lotus Noir",
+    description: "Intriga urbana com magia e mistério.",
+    totalChapters: 80,
+    currentChapter: 52,
+    status: "Manual"
+  },
+  {
+    id: "azure-blade",
+    name: "Azure Blade",
+    description: "Jornada de espadas e clãs rivais.",
+    totalChapters: 60,
+    currentChapter: 17,
+    status: "Manual"
+  },
+  {
+    id: "city-of-jade",
+    name: "City of Jade",
+    description: "Cultivo e política em uma cidade lendária.",
+    totalChapters: 240,
+    currentChapter: 204,
+    status: "Manual"
+  }
 ];
 
-const importedSeries = [
-  { title: "Crimson Pact", chapter: "Cap. 13", status: "Novo" },
-  { title: "Silver Harbor", chapter: "Cap. 77", status: "Em dia" }
+const importedManhuas: ManhuaItem[] = [
+  {
+    id: "crimson-pact",
+    name: "Crimson Pact",
+    description: "",
+    totalChapters: 90,
+    currentChapter: 13,
+    status: "Importado"
+  },
+  {
+    id: "silver-harbor",
+    name: "Silver Harbor",
+    description: "",
+    totalChapters: 110,
+    currentChapter: 77,
+    status: "Importado"
+  }
 ];
 
 const features = [
@@ -44,18 +103,12 @@ const activities = [
   }
 ];
 
-type ShelfFormItem = {
-  name: string;
-  description: string;
-  totalChapters: string;
-  currentChapter: string;
-};
-
 export default function App() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [note, setNote] = useState<string | null>(null);
-  const [series, setSeries] = useState(initialSeries);
+  const [manhuas, setManhuas] = useState<ManhuaItem[]>(initialManhuas);
   const [isShelfOpen, setIsShelfOpen] = useState(false);
+  const [shelfMode, setShelfMode] = useState<"create" | "edit">("create");
   const [shelfStep, setShelfStep] = useState<"count" | "form">("count");
   const [shelfCount, setShelfCount] = useState(1);
   const [shelfItems, setShelfItems] = useState<ShelfFormItem[]>([]);
@@ -65,20 +118,27 @@ export default function App() {
     document.body.dataset.theme = theme;
   }, [theme]);
 
-  const stats = useMemo(
-    () => [
-      { label: "Capítulos lidos", value: "1.248", trend: "+23 na semana" },
+  const stats = useMemo(() => {
+    const totalRead = manhuas.reduce(
+      (acc, item) => acc + item.currentChapter,
+      0
+    );
+    const format = (value: number) =>
+      new Intl.NumberFormat("pt-BR").format(value);
+
+    return [
+      { label: "Capítulos lidos", value: format(totalRead), trend: "+23 na semana" },
       {
         label: "Séries ativas",
-        value: String(series.length),
-        trend: series.length > 0 ? "3 em hiato" : "Comece sua estante"
+        value: String(manhuas.length),
+        trend: manhuas.length > 0 ? "3 em hiato" : "Comece sua estante"
       },
       { label: "Capítulos marcados", value: "4", trend: "2 favoritos" }
-    ],
-    [series.length]
-  );
+    ];
+  }, [manhuas]);
 
   const handleCreateShelf = () => {
+    setShelfMode("create");
     setShelfError(null);
     setShelfCount(1);
     setShelfItems([]);
@@ -87,17 +147,34 @@ export default function App() {
   };
 
   const handleImportList = () => {
-    setSeries((current) =>
-      current.length > initialSeries.length
+    setManhuas((current) =>
+      current.length > initialManhuas.length
         ? current
-        : [...current, ...importedSeries]
+        : [...current, ...importedManhuas]
     );
     setNote("Lista importada. Revise e ajuste os capítulos manualmente.");
   };
 
   const handleOpenShelf = () => {
-    document.getElementById("biblioteca")?.scrollIntoView({ behavior: "smooth" });
-    setNote("Abrindo sua estante local.");
+    if (manhuas.length === 0) {
+      setNote("Sua estante está vazia. Vamos criar a primeira?");
+      handleCreateShelf();
+      return;
+    }
+
+    setShelfMode("edit");
+    setShelfError(null);
+    setShelfStep("form");
+    setShelfItems(
+      manhuas.map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        totalChapters: String(item.totalChapters),
+        currentChapter: String(item.currentChapter)
+      }))
+    );
+    setIsShelfOpen(true);
   };
 
   const handleExplore = (title: string) => {
@@ -149,28 +226,23 @@ export default function App() {
     );
   };
 
-  const handleSaveShelf = () => {
-    setShelfError(null);
-
-    if (shelfItems.length === 0) {
-      setShelfError("Adicione pelo menos um manhua para salvar.");
-      return;
+  const validateShelfItems = (items: ShelfFormItem[]) => {
+    if (items.length === 0) {
+      return "Adicione pelo menos um manhua para salvar.";
     }
 
-    const hasMissingName = shelfItems.some((item) => item.name.trim() === "");
-    const hasMissingTotal = shelfItems.some((item) => item.totalChapters === "");
+    const hasMissingName = items.some((item) => item.name.trim() === "");
+    const hasMissingTotal = items.some((item) => item.totalChapters === "");
     if (hasMissingName || hasMissingTotal) {
-      setShelfError("Preencha nome e total de capítulos em todos os itens.");
-      return;
+      return "Preencha todos os campos obrigatórios.";
     }
 
-    const parsedTotals = shelfItems.map((item) => Number(item.totalChapters));
+    const parsedTotals = items.map((item) => Number(item.totalChapters));
     if (parsedTotals.some((value) => Number.isNaN(value) || value <= 0)) {
-      setShelfError("Total de capítulos deve ser um número acima de zero.");
-      return;
+      return "Total de capítulos deve ser um número acima de zero.";
     }
 
-    const parsedCurrents = shelfItems.map((item) =>
+    const parsedCurrents = items.map((item) =>
       item.currentChapter === "" ? null : Number(item.currentChapter)
     );
     if (
@@ -178,43 +250,106 @@ export default function App() {
         (value) => value !== null && (Number.isNaN(value) || value < 0)
       )
     ) {
-      setShelfError("Capítulo atual precisa ser zero ou maior.");
+      return "Capítulo atual precisa ser zero ou maior.";
+    }
+
+    return null;
+  };
+
+  const hasMissingRequired = shelfItems.some(
+    (item) => item.name.trim() === "" || item.totalChapters === ""
+  );
+
+  const shouldHighlightRequired =
+    shelfError === "Preencha todos os campos obrigatórios." && hasMissingRequired;
+
+  const isMissingRequiredField = (
+    item: ShelfFormItem,
+    field: "name" | "totalChapters"
+  ) => {
+    if (!shouldHighlightRequired) {
+      return false;
+    }
+
+    return field === "name"
+      ? item.name.trim() === ""
+      : item.totalChapters === "";
+  };
+
+  const handleSaveShelf = () => {
+    const validationError = validateShelfItems(shelfItems);
+    if (validationError) {
+      setShelfError(validationError);
       return;
     }
 
-    const newSeries = shelfItems.map((item, index) => {
-      const total = parsedTotals[index];
-      const current =
-        parsedCurrents[index] === null ? null : parsedCurrents[index];
-      return {
-        title: item.name.trim(),
-        description: item.description.trim(),
-        total,
-        current
-      };
-    });
+    if (shelfMode === "edit") {
+      setManhuas((current) =>
+        current.map((item) => {
+          const formItem = shelfItems.find((entry) => entry.id === item.id);
+          if (!formItem) {
+            return item;
+          }
+
+          const total = Number(formItem.totalChapters);
+          const currentChapter =
+            formItem.currentChapter === ""
+              ? item.currentChapter
+              : Number(formItem.currentChapter);
+          const safeCurrent = Math.min(currentChapter, total);
+
+          return {
+            ...item,
+            name: formItem.name.trim(),
+            description: formItem.description.trim(),
+            totalChapters: total,
+            currentChapter: safeCurrent
+          };
+        })
+      );
+
+      setNote("Estante atualizada com sucesso.");
+      setIsShelfOpen(false);
+      return;
+    }
+
+    const parsedTotals = shelfItems.map((item) => Number(item.totalChapters));
+    const parsedCurrents = shelfItems.map((item) =>
+      item.currentChapter === "" ? null : Number(item.currentChapter)
+    );
 
     let lastFilled = 0;
-    const mappedSeries = newSeries.map((item, index) => {
+    const mappedManhuas: ManhuaItem[] = shelfItems.map((item, index) => {
+      const total = parsedTotals[index];
       const currentBase =
-        item.current === null
+        parsedCurrents[index] === null
           ? index === 0 && lastFilled === 0
-            ? item.total
+            ? total
             : lastFilled
-          : item.current;
-      const current = Math.min(currentBase, item.total);
-      lastFilled = Math.max(lastFilled, current);
+          : parsedCurrents[index]!;
+      const currentChapter = Math.min(currentBase, total);
+      lastFilled = Math.max(lastFilled, currentChapter);
+
       return {
-        title: item.title,
-        chapter: `Cap. ${current}`,
+        id: `manual-${Date.now()}-${index}`,
+        name: item.name.trim(),
+        description: item.description.trim(),
+        totalChapters: total,
+        currentChapter,
         status: "Manual"
       };
     });
 
-    setSeries((current) => [...mappedSeries, ...current]);
+    setManhuas((current) => [...mappedManhuas, ...current]);
     setNote("Estante criada. Seus manhuas já estão na biblioteca.");
     setIsShelfOpen(false);
   };
+
+  const handleNavClick =
+    (id: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    };
 
   return (
     <div className="app">
@@ -224,10 +359,18 @@ export default function App() {
           <span className="brand-name">Manhua Hub</span>
         </div>
         <nav className="nav">
-          <a href="#biblioteca">Biblioteca</a>
-          <a href="#descobrir">Descobrir</a>
-          <a href="#colecoes">Coleções</a>
-          <a href="#comunidade">Comunidade</a>
+          <a href="#biblioteca" onClick={handleNavClick("biblioteca")}>
+            Biblioteca
+          </a>
+          <a href="#descobrir" onClick={handleNavClick("descobrir")}>
+            Descobrir
+          </a>
+          <a href="#colecoes" onClick={handleNavClick("colecoes")}>
+            Coleções
+          </a>
+          <a href="#comunidade" onClick={handleNavClick("comunidade")}>
+            Comunidade
+          </a>
         </nav>
         <div className="topbar-actions">
           <button
@@ -290,13 +433,14 @@ export default function App() {
                 ))}
               </div>
               <div className="shelf-grid">
-                {series.map((item, index) => (
-                  <div className="series-item" key={item.title}>
-                    <span className={`series-cover tone-${index + 1}`} />
+                {manhuas.map((item, index) => (
+                  <div className="series-item" key={item.id}>
+                    <span className={`series-cover tone-${(index % 4) + 1}`} />
                     <div>
-                      <p className="series-title">{item.title}</p>
+                      <p className="series-title">{item.name}</p>
                       <p className="series-sub">
-                        {item.chapter} - {item.status}
+                        Cap. {item.currentChapter} / {item.totalChapters} -{" "}
+                        {item.status}
                       </p>
                     </div>
                   </div>
@@ -311,7 +455,7 @@ export default function App() {
                   className="btn btn-primary btn-compact"
                   onClick={handleOpenShelf}
                 >
-                  Abrir estante
+                  Editar estante
                 </button>
               </div>
             </div>
@@ -380,15 +524,21 @@ export default function App() {
           <div className="modal">
             <div className="modal-header">
               <div>
-                <p className="eyebrow">Criar estante</p>
-                <h2>Adicionar manhuas manualmente</h2>
+                <p className="eyebrow">
+                  {shelfMode === "edit" ? "Editar estante" : "Criar estante"}
+                </p>
+                <h2>
+                  {shelfMode === "edit"
+                    ? "Atualizar seus manhuas"
+                    : "Adicionar manhuas manualmente"}
+                </h2>
               </div>
               <button className="btn btn-ghost" onClick={handleCloseShelf}>
                 Fechar
               </button>
             </div>
 
-            {shelfStep === "count" ? (
+            {shelfMode === "create" && shelfStep === "count" ? (
               <div className="modal-body">
                 <p className="modal-text">
                   Quantos manhuas você quer adicionar agora?
@@ -407,7 +557,10 @@ export default function App() {
                   Você pode adicionar mais depois.
                 </p>
                 <div className="modal-actions">
-                  <button className="btn btn-primary" onClick={handleConfirmCount}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleConfirmCount}
+                  >
                     Continuar
                   </button>
                 </div>
@@ -416,15 +569,21 @@ export default function App() {
               <div className="modal-body">
                 <div className="shelf-form">
                   {shelfItems.map((item, index) => (
-                    <div className="shelf-card" key={`shelf-${index}`}>
+                    <div className="shelf-card" key={item.id ?? `shelf-${index}`}>
                       <div className="shelf-card-header">
-                        <span className={`series-cover tone-${index + 1}`} />
+                        <span className={`series-cover tone-${(index % 4) + 1}`} />
                         <h3>Manhua {index + 1}</h3>
                       </div>
                       <label className="field">
-                        <span>Nome do manhua *</span>
+                        <span>
+                          Nome do manhua <strong className="required">*</strong>
+                        </span>
                         <input
-                          className="input"
+                          className={`input${
+                            isMissingRequiredField(item, "name")
+                              ? " input-required"
+                              : ""
+                          }`}
                           type="text"
                           value={item.name}
                           onChange={(event) =>
@@ -452,9 +611,16 @@ export default function App() {
                       </label>
                       <div className="field-row">
                         <label className="field">
-                          <span>Capítulos totais *</span>
+                          <span>
+                            Capítulos totais{" "}
+                            <strong className="required">*</strong>
+                          </span>
                           <input
-                            className="input"
+                            className={`input${
+                              isMissingRequiredField(item, "totalChapters")
+                                ? " input-required"
+                                : ""
+                            }`}
                             type="number"
                             min={1}
                             value={item.totalChapters}
@@ -497,7 +663,7 @@ export default function App() {
                     Cancelar
                   </button>
                   <button className="btn btn-primary" onClick={handleSaveShelf}>
-                    Salvar estante
+                    {shelfMode === "edit" ? "Salvar alterações" : "Salvar estante"}
                   </button>
                 </div>
               </div>
