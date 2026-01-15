@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
+import { manhuaRepository } from "./repositories/manhuaRepository";
 import type { ManhuaItem, StatItem } from "./types/manhua";
 import "./styles/app.css";
 
@@ -70,9 +71,18 @@ const importedManhuas: ManhuaItem[] = [
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    const stored = window.localStorage.getItem("manhuaHub.theme");
+    return stored === "dark" ? "dark" : "light";
+  });
   const [note, setNote] = useState<string | null>(null);
-  const [manhuas, setManhuas] = useState<ManhuaItem[]>(initialManhuas);
+  const [manhuas, setManhuas] = useState<ManhuaItem[]>(() =>
+    manhuaRepository.load(initialManhuas)
+  );
   const [isShelfOpen, setIsShelfOpen] = useState(false);
   const [shelfMode, setShelfMode] = useState<"create" | "edit">("create");
   const [shelfStep, setShelfStep] = useState<"count" | "form">("count");
@@ -94,7 +104,14 @@ export default function App() {
 
   useEffect(() => {
     document.body.dataset.theme = theme;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("manhuaHub.theme", theme);
+    }
   }, [theme]);
+
+  useEffect(() => {
+    manhuaRepository.save(manhuas);
+  }, [manhuas]);
 
   useEffect(() => {
     if (!location.hash) {
@@ -497,10 +514,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
+        <Link to="/" className="brand brand-link">
           <span className="brand-mark">MH</span>
           <span className="brand-name">Manhua Hub</span>
-        </div>
+        </Link>
         <nav className="nav">
           <Link to="/biblioteca" className="nav-link">
             Biblioteca
