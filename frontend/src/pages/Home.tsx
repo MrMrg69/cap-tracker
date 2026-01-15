@@ -105,7 +105,12 @@ export default function Home({
                   <div className="series-item" key={item.id}>
                     <span className={`series-cover tone-${(index % 4) + 1}`} />
                     <div>
-                      <p className="series-title">{item.name}</p>
+                      <p className="series-title">
+                        {item.name}
+                        {item.favorite ? (
+                          <span className="series-badge">Favorito</span>
+                        ) : null}
+                      </p>
                       <p className="series-sub">
                         Cap. {item.currentChapter} / {item.totalChapters} -{" "}
                         {item.status}

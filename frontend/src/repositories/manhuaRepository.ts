@@ -17,8 +17,37 @@ const safeParse = (raw: string | null) => {
   }
 };
 
+const normalizeItem = (item: unknown): ManhuaItem | null => {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const data = item as Partial<ManhuaItem>;
+  if (!data.id || !data.name || !data.status) {
+    return null;
+  }
+
+  const total = Number(data.totalChapters);
+  const current = Number(data.currentChapter);
+  if (!Number.isFinite(total) || !Number.isFinite(current)) {
+    return null;
+  }
+
+  return {
+    id: String(data.id),
+    name: String(data.name),
+    description: String(data.description ?? ""),
+    totalChapters: total,
+    currentChapter: current,
+    status: String(data.status),
+    favorite: Boolean(data.favorite)
+  };
+};
+
 const sanitize = (items: unknown[]): ManhuaItem[] =>
-  items.filter((item): item is ManhuaItem => Boolean(item && typeof item === "object"));
+  items
+    .map(normalizeItem)
+    .filter((item): item is ManhuaItem => item !== null);
 
 const load = (fallback: ManhuaItem[]) => {
   if (!isBrowser()) {
@@ -36,6 +65,7 @@ const load = (fallback: ManhuaItem[]) => {
     return fallback;
   }
 
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
   return sanitized;
 };
 
