@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import type { ManhuaItem, StatItem } from "./types/manhua";
@@ -69,6 +69,7 @@ const importedManhuas: ManhuaItem[] = [
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [note, setNote] = useState<string | null>(null);
   const [manhuas, setManhuas] = useState<ManhuaItem[]>(initialManhuas);
@@ -78,6 +79,18 @@ export default function App() {
   const [shelfCount, setShelfCount] = useState(1);
   const [shelfItems, setShelfItems] = useState<ShelfFormItem[]>([]);
   const [shelfError, setShelfError] = useState<string | null>(null);
+  const [pendingHash, setPendingHash] = useState<string | null>(null);
+
+  const scrollToId = (id: string) => {
+    const target = document.getElementById(id);
+    if (!target) {
+      return false;
+    }
+
+    const top = target.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top, behavior: "smooth" });
+    return true;
+  };
 
   useEffect(() => {
     document.body.dataset.theme = theme;
@@ -89,11 +102,48 @@ export default function App() {
     }
 
     const id = location.hash.replace("#", "");
-    const target = document.getElementById(id);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth" });
+    if (scrollToId(id)) {
+      return;
     }
-  }, [location]);
+
+    setPendingHash(id);
+  }, [location.hash]);
+
+  useEffect(() => {
+    if (!pendingHash) {
+      return;
+    }
+
+    if (location.pathname !== "/") {
+      return;
+    }
+
+    let attempts = 0;
+    let cancelled = false;
+
+    const tryScroll = () => {
+      if (cancelled) {
+        return;
+      }
+
+      if (scrollToId(pendingHash)) {
+        window.history.replaceState(null, "", `/#${pendingHash}`);
+        setPendingHash(null);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < 12) {
+        window.requestAnimationFrame(tryScroll);
+      }
+    };
+
+    tryScroll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingHash, location.pathname]);
 
   const stats = useMemo<StatItem[]>(() => {
     const totalRead = manhuas.reduce(
@@ -179,6 +229,7 @@ export default function App() {
 
   const handleExplore = (title: string) => {
     setNote(`Explorar "${title}" em breve.`);
+    handleNavigateHome("descobrir");
   };
 
   const handleLogin = () => {
@@ -187,10 +238,12 @@ export default function App() {
 
   const handleAccess = () => {
     setNote("Acesso solicitado. Vamos te chamar quando abrir convites.");
+    handleNavigateHome("comunidade");
   };
 
   const handleCommunity = () => {
     setNote("Comunidade em construção. Em breve abrimos o Discord.");
+    handleNavigateHome("comunidade");
   };
 
   const handleThemeToggle = () => {
@@ -200,6 +253,23 @@ export default function App() {
   const handleCloseShelf = () => {
     setIsShelfOpen(false);
     setShelfError(null);
+  };
+
+  const handleNavigateHome = (hash?: string) => {
+    if (hash) {
+      if (location.pathname === "/") {
+        if (scrollToId(hash)) {
+          window.history.replaceState(null, "", `/#${hash}`);
+          return;
+        }
+      }
+
+      setPendingHash(hash);
+      navigate("/");
+      return;
+    }
+
+    navigate("/");
   };
 
   const handleConfirmCount = () => {
@@ -263,6 +333,12 @@ export default function App() {
   const shouldHighlightRequired =
     shelfError === "Preencha todos os campos obrigatórios." && hasMissingRequired;
 
+  const shouldHighlightDuplicate =
+    shelfError === "Nomes duplicados não são permitidos.";
+
+  const shouldHighlightNameConflict =
+    shelfError === "Já existe um manhua com esse nome.";
+
   const isMissingRequiredField = (
     item: ShelfFormItem,
     field: "name" | "totalChapters"
@@ -276,10 +352,83 @@ export default function App() {
       : item.totalChapters === "";
   };
 
+  const isDuplicateName = (item: ShelfFormItem) => {
+    if (!shouldHighlightDuplicate && !shouldHighlightNameConflict) {
+      return false;
+    }
+
+    const normalized = item.name.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+
+    const count = shelfItems.filter(
+      (entry) => entry.name.trim().toLowerCase() === normalized
+    ).length;
+
+    if (count > 1) {
+      return true;
+    }
+
+    if (shouldHighlightNameConflict) {
+      const existingNames = new Set(
+        manhuas.map((entry) => entry.name.trim().toLowerCase())
+      );
+      if (shelfMode === "edit" && item.id) {
+        const original = manhuas.find((entry) => entry.id === item.id);
+        if (original && original.name.trim().toLowerCase() === normalized) {
+          return false;
+        }
+      }
+      return existingNames.has(normalized);
+    }
+
+    return false;
+  };
+
+  const hasDuplicateNames = (items: ShelfFormItem[]) => {
+    const names = items
+      .map((item) => item.name.trim().toLowerCase())
+      .filter((name) => name !== "");
+    return new Set(names).size !== names.length;
+  };
+
+  const hasExistingNameConflict = (items: ShelfFormItem[]) => {
+    const existingNames = new Set(
+      manhuas.map((item) => item.name.trim().toLowerCase())
+    );
+
+    return items.some((item) => {
+      const normalized = item.name.trim().toLowerCase();
+      if (!normalized) {
+        return false;
+      }
+
+      if (shelfMode === "edit") {
+        const original = manhuas.find((entry) => entry.id === item.id);
+        if (original && original.name.trim().toLowerCase() === normalized) {
+          return false;
+        }
+      }
+
+      return existingNames.has(normalized);
+    });
+  };
+
   const handleSaveShelf = () => {
     const validationError = validateShelfItems(shelfItems);
     if (validationError) {
       setShelfError(validationError);
+      return;
+    }
+
+    if (hasDuplicateNames(shelfItems)) {
+      setShelfError("Nomes duplicados não são permitidos.");
+      return;
+    }
+
+    if (hasExistingNameConflict(shelfItems)) {
+      setShelfError("Já existe um manhua com esse nome.");
       return;
     }
 
@@ -353,10 +502,30 @@ export default function App() {
           <span className="brand-name">Manhua Hub</span>
         </div>
         <nav className="nav">
-          <Link to="/biblioteca">Biblioteca</Link>
-          <Link to="/#descobrir">Descobrir</Link>
-          <Link to="/#colecoes">Coleções</Link>
-          <Link to="/#comunidade">Comunidade</Link>
+          <Link to="/biblioteca" className="nav-link">
+            Biblioteca
+          </Link>
+          <button
+            type="button"
+            className="nav-link"
+            onClick={() => handleNavigateHome("descobrir")}
+          >
+            Descobrir
+          </button>
+          <button
+            type="button"
+            className="nav-link"
+            onClick={() => handleNavigateHome("colecoes")}
+          >
+            Coleções
+          </button>
+          <button
+            type="button"
+            className="nav-link"
+            onClick={() => handleNavigateHome("comunidade")}
+          >
+            Comunidade
+          </button>
         </nav>
         <div className="topbar-actions">
           <button
@@ -496,7 +665,7 @@ export default function App() {
                         </span>
                         <input
                           className={`input${
-                            isMissingRequiredField(item, "name")
+                            isMissingRequiredField(item, "name") || isDuplicateName(item)
                               ? " input-required"
                               : ""
                           }`}

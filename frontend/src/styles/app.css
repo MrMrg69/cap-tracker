@@ -74,6 +74,11 @@
   font-family: var(--font-display);
 }
 
+body[data-theme="dark"] .brand-mark {
+  background: #f7f4ee;
+  color: #0f0f12;
+}
+
 .brand-name {
   font-size: 1.1rem;
 }
@@ -85,11 +90,19 @@
   font-size: 0.95rem;
 }
 
-.nav a {
+.nav a,
+.nav .nav-link {
   position: relative;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
-.nav a::after {
+.nav a::after,
+.nav .nav-link::after {
   content: "";
   position: absolute;
   left: 0;
@@ -100,7 +113,8 @@
   transition: width 0.2s ease;
 }
 
-.nav a:hover::after {
+.nav a:hover::after,
+.nav .nav-link:hover::after {
   width: 100%;
 }
 
