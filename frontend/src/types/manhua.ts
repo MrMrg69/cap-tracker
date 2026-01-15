@@ -5,6 +5,7 @@ export type ManhuaItem = {
   totalChapters: number;
   currentChapter: number;
   status: string;
+  favorite: boolean;
 };
 
 export type StatItem = {

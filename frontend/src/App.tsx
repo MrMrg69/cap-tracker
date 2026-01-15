@@ -12,6 +12,7 @@ type ShelfFormItem = {
   description: string;
   totalChapters: string;
   currentChapter: string;
+  favorite: boolean;
 };
 
 const initialManhuas: ManhuaItem[] = [
@@ -21,7 +22,8 @@ const initialManhuas: ManhuaItem[] = [
     description: "Romance intenso com contratos e reviravoltas.",
     totalChapters: 120,
     currentChapter: 89,
-    status: "Manual"
+    status: "Manual",
+    favorite: false
   },
   {
     id: "lotus-noir",
@@ -29,7 +31,8 @@ const initialManhuas: ManhuaItem[] = [
     description: "Intriga urbana com magia e mistério.",
     totalChapters: 80,
     currentChapter: 52,
-    status: "Manual"
+    status: "Manual",
+    favorite: false
   },
   {
     id: "azure-blade",
@@ -37,7 +40,8 @@ const initialManhuas: ManhuaItem[] = [
     description: "Jornada de espadas e clãs rivais.",
     totalChapters: 60,
     currentChapter: 17,
-    status: "Manual"
+    status: "Manual",
+    favorite: false
   },
   {
     id: "city-of-jade",
@@ -45,7 +49,8 @@ const initialManhuas: ManhuaItem[] = [
     description: "Cultivo e política em uma cidade lendária.",
     totalChapters: 240,
     currentChapter: 204,
-    status: "Manual"
+    status: "Manual",
+    favorite: false
   }
 ];
 
@@ -56,7 +61,8 @@ const importedManhuas: ManhuaItem[] = [
     description: "",
     totalChapters: 90,
     currentChapter: 13,
-    status: "Importado"
+    status: "Importado",
+    favorite: false
   },
   {
     id: "silver-harbor",
@@ -64,7 +70,8 @@ const importedManhuas: ManhuaItem[] = [
     description: "",
     totalChapters: 110,
     currentChapter: 77,
-    status: "Importado"
+    status: "Importado",
+    favorite: false
   }
 ];
 
@@ -90,6 +97,7 @@ export default function App() {
   const [shelfItems, setShelfItems] = useState<ShelfFormItem[]>([]);
   const [shelfError, setShelfError] = useState<string | null>(null);
   const [pendingHash, setPendingHash] = useState<string | null>(null);
+  const [editScopeIds, setEditScopeIds] = useState<string[]>([]);
 
   const scrollToId = (id: string) => {
     const target = document.getElementById(id);
@@ -181,22 +189,21 @@ export default function App() {
     ];
   }, [manhuas]);
 
-  const recentManhuas = useMemo(
-    () => manhuas.slice(0, 5),
-    [manhuas]
-  );
+  const recentManhuas = useMemo(() => manhuas.slice(0, 5), [manhuas]);
 
   const openShelfEdit = (items: ManhuaItem[]) => {
     setShelfMode("edit");
     setShelfError(null);
     setShelfStep("form");
+    setEditScopeIds(items.map((item) => item.id));
     setShelfItems(
       items.map((item) => ({
         id: item.id,
         name: item.name,
         description: item.description,
         totalChapters: String(item.totalChapters),
-        currentChapter: String(item.currentChapter)
+        currentChapter: String(item.currentChapter),
+        favorite: item.favorite
       }))
     );
     setIsShelfOpen(true);
@@ -208,6 +215,7 @@ export default function App() {
     setShelfCount(1);
     setShelfItems([]);
     setShelfStep("count");
+    setEditScopeIds([]);
     setIsShelfOpen(true);
   };
 
@@ -295,7 +303,8 @@ export default function App() {
       name: "",
       description: "",
       totalChapters: "",
-      currentChapter: ""
+      currentChapter: "",
+      favorite: false
     }));
     setShelfItems(items);
     setShelfStep("form");
@@ -311,6 +320,33 @@ export default function App() {
         itemIndex === index ? { ...item, [field]: value } : item
       )
     );
+  };
+
+  const handleShelfToggleFavorite = (index: number) => {
+    setShelfItems((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, favorite: !item.favorite } : item
+      )
+    );
+  };
+
+  const handleRemoveShelfItem = (index: number) => {
+    setShelfItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const handleToggleFavorite = (id: string) => {
+    setManhuas((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, favorite: !item.favorite } : item
+      )
+    );
+  };
+
+  const handleDeleteManhua = (id: string) => {
+    setManhuas((current) => current.filter((item) => item.id !== id));
+    if (shelfMode === "edit") {
+      setShelfItems((current) => current.filter((item) => item.id !== id));
+    }
   };
 
   const validateShelfItems = (items: ShelfFormItem[]) => {
@@ -433,6 +469,16 @@ export default function App() {
   };
 
   const handleSaveShelf = () => {
+    if (shelfMode === "edit" && shelfItems.length === 0) {
+      const removedIds = new Set(editScopeIds);
+      setManhuas((current) =>
+        current.filter((item) => !removedIds.has(item.id))
+      );
+      setNote("Manhuas removidos da estante.");
+      setIsShelfOpen(false);
+      return;
+    }
+
     const validationError = validateShelfItems(shelfItems);
     if (validationError) {
       setShelfError(validationError);
@@ -450,28 +496,38 @@ export default function App() {
     }
 
     if (shelfMode === "edit") {
+      const currentIds = new Set(
+        shelfItems.map((entry) => entry.id).filter(Boolean) as string[]
+      );
+      const removedIds = new Set(
+        editScopeIds.filter((id) => !currentIds.has(id))
+      );
+
       setManhuas((current) =>
-        current.map((item) => {
-          const formItem = shelfItems.find((entry) => entry.id === item.id);
-          if (!formItem) {
-            return item;
-          }
+        current
+          .filter((item) => !removedIds.has(item.id))
+          .map((item) => {
+            const formItem = shelfItems.find((entry) => entry.id === item.id);
+            if (!formItem) {
+              return item;
+            }
 
-          const total = Number(formItem.totalChapters);
-          const currentChapter =
-            formItem.currentChapter === ""
-              ? item.currentChapter
-              : Number(formItem.currentChapter);
-          const safeCurrent = Math.min(currentChapter, total);
+            const total = Number(formItem.totalChapters);
+            const currentChapter =
+              formItem.currentChapter === ""
+                ? item.currentChapter
+                : Number(formItem.currentChapter);
+            const safeCurrent = Math.min(currentChapter, total);
 
-          return {
-            ...item,
-            name: formItem.name.trim(),
-            description: formItem.description.trim(),
-            totalChapters: total,
-            currentChapter: safeCurrent
-          };
-        })
+            return {
+              ...item,
+              name: formItem.name.trim(),
+              description: formItem.description.trim(),
+              totalChapters: total,
+              currentChapter: safeCurrent,
+              favorite: formItem.favorite
+            };
+          })
       );
 
       setNote("Estante atualizada com sucesso.");
@@ -502,7 +558,8 @@ export default function App() {
         description: item.description.trim(),
         totalChapters: total,
         currentChapter,
-        status: "Manual"
+        status: "Manual",
+        favorite: item.favorite
       };
     });
 
@@ -583,6 +640,8 @@ export default function App() {
                 onCreateShelf={handleCreateShelf}
                 onEditBulk={handleEditAll}
                 onEditSingle={handleEditSingle}
+                onToggleFavorite={handleToggleFavorite}
+                onDeleteManhua={handleDeleteManhua}
               />
             }
           />
@@ -632,144 +691,190 @@ export default function App() {
                     : "Adicionar manhuas manualmente"}
                 </h2>
               </div>
-              <button className="btn btn-ghost" onClick={handleCloseShelf}>
-                Fechar
-              </button>
             </div>
 
-            {shelfMode === "create" && shelfStep === "count" ? (
-              <div className="modal-body">
-                <p className="modal-text">
-                  Quantos manhuas você quer adicionar agora?
-                </p>
-                <input
-                  className="input"
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={shelfCount}
-                  onChange={(event) =>
-                    setShelfCount(Number(event.target.value))
-                  }
-                />
-                <p className="field-hint">
-                  Você pode adicionar mais depois.
-                </p>
-                <div className="modal-actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleConfirmCount}
-                  >
-                    Continuar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="modal-body">
-                <div className="shelf-form">
-                  {shelfItems.map((item, index) => (
-                    <div
-                      className="shelf-card"
-                      key={item.id ?? `shelf-${index}`}
-                    >
-                      <div className="shelf-card-header">
-                        <span className={`series-cover tone-${(index % 4) + 1}`} />
-                        <h3>Manhua {index + 1}</h3>
-                      </div>
-                      <label className="field">
-                        <span>
-                          Nome do manhua <strong className="required">*</strong>
-                        </span>
-                        <input
-                          className={`input${
-                            isMissingRequiredField(item, "name") || isDuplicateName(item)
-                              ? " input-required"
-                              : ""
-                          }`}
-                          type="text"
-                          value={item.name}
-                          onChange={(event) =>
-                            handleShelfChange(index, "name", event.target.value)
-                          }
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Descrição (opcional)</span>
-                        <textarea
-                          className="input textarea"
-                          maxLength={220}
-                          value={item.description}
-                          onChange={(event) =>
-                            handleShelfChange(
-                              index,
-                              "description",
-                              event.target.value
-                            )
-                          }
-                        />
-                        <span className="field-hint">
-                          Até 220 caracteres.
-                        </span>
-                      </label>
-                      <div className="field-row">
+            <div className="modal-body">
+              {shelfMode === "create" && shelfStep === "count" ? (
+                <>
+                  <p className="modal-text">
+                    Quantos manhuas você quer adicionar agora?
+                  </p>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={shelfCount}
+                    onChange={(event) =>
+                      setShelfCount(Number(event.target.value))
+                    }
+                  />
+                  <p className="field-hint">Até 12 por vez. Você pode repetir.</p>
+                </>
+              ) : (
+                <>
+                  <div className="shelf-form">
+                    {shelfItems.map((item, index) => (
+                      <div
+                        className="shelf-card"
+                        key={item.id ?? `shelf-${index}`}
+                      >
+                        <div className="shelf-card-header">
+                          <span className={`series-cover tone-${(index % 4) + 1}`} />
+                          <div className="shelf-card-title">
+                            <h3>Manhua {index + 1}</h3>
+                            <button
+                              type="button"
+                              className={`icon-btn${
+                                item.favorite ? " is-active" : ""
+                              }`}
+                              onClick={() => handleShelfToggleFavorite(index)}
+                              aria-pressed={item.favorite}
+                              aria-label={
+                                item.favorite ? "Desfavoritar" : "Favoritar"
+                              }
+                            >
+                              {item.favorite ? (
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                  <path
+                                    d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.8 6.7 19.6l1-5.8-4.2-4.1 5.9-.9L12 3.5z"
+                                    fill="currentColor"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                  <path
+                                    d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.8 6.7 19.6l1-5.8-4.2-4.1 5.9-.9L12 3.5z"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        </div>
                         <label className="field">
                           <span>
-                            Capítulos totais{" "}
-                            <strong className="required">*</strong>
+                            Nome do manhua <strong className="required">*</strong>
                           </span>
                           <input
                             className={`input${
-                              isMissingRequiredField(item, "totalChapters")
+                              isMissingRequiredField(item, "name") ||
+                              isDuplicateName(item)
                                 ? " input-required"
                                 : ""
                             }`}
-                            type="number"
-                            min={1}
-                            value={item.totalChapters}
+                            type="text"
+                            value={item.name}
                             onChange={(event) =>
-                              handleShelfChange(
-                                index,
-                                "totalChapters",
-                                event.target.value
-                              )
+                              handleShelfChange(index, "name", event.target.value)
                             }
                           />
                         </label>
                         <label className="field">
-                          <span>Capítulo atual</span>
-                          <input
-                            className="input"
-                            type="number"
-                            min={0}
-                            value={item.currentChapter}
+                          <span>Descrição (opcional)</span>
+                          <textarea
+                            className="input textarea"
+                            maxLength={220}
+                            value={item.description}
                             onChange={(event) =>
                               handleShelfChange(
                                 index,
-                                "currentChapter",
+                                "description",
                                 event.target.value
                               )
                             }
                           />
+                          <span className="field-hint">
+                            Até 220 caracteres.
+                          </span>
                         </label>
+                        <div className="field-row">
+                          <label className="field">
+                            <span>
+                              Capítulos totais{" "}
+                              <strong className="required">*</strong>
+                            </span>
+                            <input
+                              className={`input${
+                                isMissingRequiredField(item, "totalChapters")
+                                  ? " input-required"
+                                  : ""
+                              }`}
+                              type="number"
+                              min={1}
+                              value={item.totalChapters}
+                              onChange={(event) =>
+                                handleShelfChange(
+                                  index,
+                                  "totalChapters",
+                                  event.target.value
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="field">
+                            <span>Capítulo atual</span>
+                            <input
+                              className="input"
+                              type="number"
+                              min={0}
+                              value={item.currentChapter}
+                              onChange={(event) =>
+                                handleShelfChange(
+                                  index,
+                                  "currentChapter",
+                                  event.target.value
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+                        <div className="shelf-card-actions">
+                          <button
+                            type="button"
+                            className="icon-btn danger"
+                            onClick={() => handleRemoveShelfItem(index)}
+                            aria-label="Remover manhua"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="M6 7h12M9 7V5h6v2m-7 4v7m4-7v7m4-7v7M7 7l1 13h8l1-13"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                {shelfError ? (
-                  <p className="action-note" aria-live="polite">
-                    {shelfError}
-                  </p>
-                ) : null}
-                <div className="modal-actions">
-                  <button className="btn btn-ghost" onClick={handleCloseShelf}>
-                    Cancelar
-                  </button>
-                  <button className="btn btn-primary" onClick={handleSaveShelf}>
-                    {shelfMode === "edit" ? "Salvar alterações" : "Salvar estante"}
-                  </button>
-                </div>
-              </div>
-            )}
+                    ))}
+                  </div>
+                  {shelfError ? (
+                    <p className="action-note" aria-live="polite">
+                      {shelfError}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={handleCloseShelf}>
+                Cancelar
+              </button>
+              {shelfMode === "create" && shelfStep === "count" ? (
+                <button className="btn btn-primary" onClick={handleConfirmCount}>
+                  Continuar
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={handleSaveShelf}>
+                  {shelfMode === "edit" ? "Salvar alterações" : "Salvar estante"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ) : null}

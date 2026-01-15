@@ -322,6 +322,17 @@ main {
 
 .series-title {
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.series-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(225, 27, 34, 0.12);
+  color: var(--accent-strong);
 }
 
 .series-sub {
@@ -411,6 +422,12 @@ main {
   gap: 12px;
 }
 
+.library-tags {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .library-meta h3 {
   font-size: 1.1rem;
 }
@@ -421,6 +438,10 @@ main {
   padding: 4px 10px;
   border-radius: 999px;
   background: rgba(225, 27, 34, 0.12);
+}
+
+.library-favorite {
+  background: rgba(255, 59, 59, 0.2);
 }
 
 .library-sub {
@@ -436,6 +457,8 @@ main {
 .library-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .modal-backdrop {
@@ -455,10 +478,11 @@ main {
   box-shadow: var(--shadow);
   border: 1px solid var(--stroke);
   padding: 24px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
   max-height: 90vh;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .modal-header {
@@ -466,11 +490,20 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 2;
+  padding-bottom: 12px;
 }
 
 .modal-body {
   display: grid;
   gap: 16px;
+  overflow: auto;
+  padding-bottom: 80px;
+  flex: 1;
+  min-height: 0;
 }
 
 .modal-text {
@@ -482,6 +515,13 @@ main {
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding-top: 12px;
+  border-top: 1px solid var(--stroke);
+  box-shadow: 0 -12px 24px rgba(15, 15, 18, 0.08);
+  z-index: 2;
 }
 
 .shelf-form {
@@ -502,6 +542,47 @@ main {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.shelf-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shelf-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--stroke);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1rem;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn.is-active {
+  color: var(--accent-strong);
+  border-color: rgba(225, 27, 34, 0.4);
+  background: rgba(225, 27, 34, 0.12);
+}
+
+.icon-btn.danger {
+  color: #d95454;
+  border-color: rgba(217, 84, 84, 0.4);
 }
 
 .field {
@@ -732,6 +813,11 @@ body[data-theme="dark"] .modal-backdrop {
 
 body[data-theme="dark"] .shelf-card {
   background: rgba(248, 248, 248, 0.03);
+}
+
+body[data-theme="dark"] .icon-btn {
+  background: rgba(248, 248, 248, 0.04);
+  color: var(--text);
 }
 
 body[data-theme="dark"] .library-item {
