@@ -62,6 +62,11 @@
   letter-spacing: 0.02em;
 }
 
+.brand-link {
+  text-decoration: none;
+  color: inherit;
+}
+
 .brand-mark {
   width: 42px;
   height: 42px;
